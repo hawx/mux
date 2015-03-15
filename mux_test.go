@@ -81,6 +81,31 @@ func TestMethodRoutingForPut(t *testing.T) {
 	assert.Equal(t, "PUT, received", string(body))
 }
 
+func TestMethodRoutingWithNonUppercaseMethod(t *testing.T) {
+	ts := httptest.NewServer(Method{
+		"GET": writeHandler("GET, received"),
+		"PUT": writeHandler("PUT, received"),
+	})
+	defer ts.Close()
+
+	req, err := http.NewRequest("put", ts.URL, strings.NewReader(""))
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, err := ioutil.ReadAll(res.Body)
+	res.Body.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, 200, res.StatusCode)
+	assert.Equal(t, "PUT, received", string(body))
+}
+
 func TestMethodRoutingForMissingMethod(t *testing.T) {
 	ts := httptest.NewServer(Method{
 		"GET": writeHandler("GET, received"),
@@ -104,4 +129,55 @@ func TestMethodRoutingForMissingMethod(t *testing.T) {
 
 	assert.Equal(t, 405, res.StatusCode)
 	assert.Equal(t, "", string(body))
+}
+
+func TestMethodRoutingDefaultOptions(t *testing.T) {
+	ts := httptest.NewServer(Method{
+		"GET": writeHandler("GET, received"),
+		"PUT": writeHandler("PUT, received"),
+	})
+	defer ts.Close()
+
+	req, err := http.NewRequest("OPTIONS", ts.URL, strings.NewReader(""))
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, err := ioutil.ReadAll(res.Body)
+	res.Body.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, 200, res.StatusCode)
+	assert.Equal(t, "", string(body))
+	assert.Equal(t, "GET,PUT,OPTIONS", res.Header.Get("Accept"))
+}
+
+func TestMethodRoutingCanOverrideOptions(t *testing.T) {
+	ts := httptest.NewServer(Method{
+		"GET":     writeHandler("GET, received"),
+		"OPTIONS": writeHandler("OPTIONS, received"),
+	})
+	defer ts.Close()
+
+	req, err := http.NewRequest("OPTIONS", ts.URL, strings.NewReader(""))
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, err := ioutil.ReadAll(res.Body)
+	res.Body.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, 200, res.StatusCode)
+	assert.Equal(t, "OPTIONS, received", string(body))
 }

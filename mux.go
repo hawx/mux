@@ -1,15 +1,31 @@
 package mux
 
-import "net/http"
+import (
+	"net/http"
+	"strings"
+)
 
 type Method map[string]http.Handler
 
 func (m Method) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	handler, ok := m[r.Method]
-	if !ok {
-		w.WriteHeader(http.StatusMethodNotAllowed)
+	method := strings.ToUpper(r.Method)
+
+	handler, ok := m[method]
+	if ok {
+		handler.ServeHTTP(w, r)
 		return
 	}
 
-	handler.ServeHTTP(w, r)
+	if !ok && method == "OPTIONS" {
+		ks := []string{}
+		for k, _ := range m {
+			ks = append(ks, k)
+		}
+		ks = append(ks, "OPTIONS")
+
+		w.Header().Set("Accept", strings.Join(ks, ","))
+		return
+	}
+
+	w.WriteHeader(http.StatusMethodNotAllowed)
 }
