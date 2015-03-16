@@ -18,21 +18,24 @@ func writeHandler(str string) http.Handler {
 	})
 }
 
-func TestOk(t *testing.T) {
-	ts := httptest.NewServer(writeHandler("Hello, client\n"))
-	defer ts.Close()
+// Method
 
-	res, err := http.Get(ts.URL)
+func makeRequest(method, url string) (res *http.Response, body string, err error) {
+	req, err := http.NewRequest(method, url, strings.NewReader(""))
 	if err != nil {
-		t.Fatal(err)
+		return
 	}
-	greeting, err := ioutil.ReadAll(res.Body)
+
+	res, err = http.DefaultClient.Do(req)
+	if err != nil {
+		return
+	}
+
+	bodyb, err := ioutil.ReadAll(res.Body)
 	res.Body.Close()
-	if err != nil {
-		t.Fatal(err)
-	}
+	body = string(bodyb)
 
-	assert.Equal(t, "Hello, client\n", string(greeting))
+	return
 }
 
 func TestMethodRoutingForGet(t *testing.T) {
@@ -63,16 +66,7 @@ func TestMethodRoutingForPut(t *testing.T) {
 	})
 	defer ts.Close()
 
-	req, err := http.NewRequest("PUT", ts.URL, strings.NewReader(""))
-	if err != nil {
-		t.Fatal(err)
-	}
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	body, err := ioutil.ReadAll(res.Body)
-	res.Body.Close()
+	res, body, err := makeRequest("PUT", ts.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,16 +82,7 @@ func TestMethodRoutingWithNonUppercaseMethod(t *testing.T) {
 	})
 	defer ts.Close()
 
-	req, err := http.NewRequest("put", ts.URL, strings.NewReader(""))
-	if err != nil {
-		t.Fatal(err)
-	}
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	body, err := ioutil.ReadAll(res.Body)
-	res.Body.Close()
+	res, body, err := makeRequest("put", ts.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,16 +98,7 @@ func TestMethodRoutingForMissingMethod(t *testing.T) {
 	})
 	defer ts.Close()
 
-	req, err := http.NewRequest("POST", ts.URL, strings.NewReader(""))
-	if err != nil {
-		t.Fatal(err)
-	}
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	body, err := ioutil.ReadAll(res.Body)
-	res.Body.Close()
+	res, body, err := makeRequest("POST", ts.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -138,16 +114,7 @@ func TestMethodRoutingDefaultOptions(t *testing.T) {
 	})
 	defer ts.Close()
 
-	req, err := http.NewRequest("OPTIONS", ts.URL, strings.NewReader(""))
-	if err != nil {
-		t.Fatal(err)
-	}
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	body, err := ioutil.ReadAll(res.Body)
-	res.Body.Close()
+	res, body, err := makeRequest("OPTIONS", ts.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -164,22 +131,34 @@ func TestMethodRoutingCanOverrideOptions(t *testing.T) {
 	})
 	defer ts.Close()
 
-	req, err := http.NewRequest("OPTIONS", ts.URL, strings.NewReader(""))
-	if err != nil {
-		t.Fatal(err)
-	}
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	body, err := ioutil.ReadAll(res.Body)
-	res.Body.Close()
+	res, body, err := makeRequest("OPTIONS", ts.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	assert.Equal(t, 200, res.StatusCode)
 	assert.Equal(t, "OPTIONS, received", string(body))
+}
+
+// ContentType
+
+func makeRequestWithType(method, url, contentType string) (res *http.Response, body string, err error) {
+	req, err := http.NewRequest(method, url, strings.NewReader(""))
+	req.Header.Set("Content-Type", contentType)
+	if err != nil {
+		return
+	}
+
+	res, err = http.DefaultClient.Do(req)
+	if err != nil {
+		return
+	}
+
+	bodyb, err := ioutil.ReadAll(res.Body)
+	res.Body.Close()
+	body = string(bodyb)
+
+	return
 }
 
 func TestContentTypeRouting(t *testing.T) {
@@ -189,17 +168,7 @@ func TestContentTypeRouting(t *testing.T) {
 	})
 	defer ts.Close()
 
-	req, err := http.NewRequest("GET", ts.URL, strings.NewReader(""))
-	req.Header.Set("Content-Type", "application/json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	body, err := ioutil.ReadAll(res.Body)
-	res.Body.Close()
+	res, body, err := makeRequestWithType("GET", ts.URL, "application/json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -215,17 +184,7 @@ func TestContentTypeRoutingUnknownType(t *testing.T) {
 	})
 	defer ts.Close()
 
-	req, err := http.NewRequest("GET", ts.URL, strings.NewReader(""))
-	req.Header.Set("Content-Type", "application/dog")
-	if err != nil {
-		t.Fatal(err)
-	}
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	body, err := ioutil.ReadAll(res.Body)
-	res.Body.Close()
+	res, body, err := makeRequestWithType("GET", ts.URL, "application/dog")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -241,17 +200,7 @@ func TestContentTypeRoutingWildcardSubtype(t *testing.T) {
 	})
 	defer ts.Close()
 
-	req, err := http.NewRequest("GET", ts.URL, strings.NewReader(""))
-	req.Header.Set("Content-Type", "application/dog")
-	if err != nil {
-		t.Fatal(err)
-	}
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	body, err := ioutil.ReadAll(res.Body)
-	res.Body.Close()
+	res, body, err := makeRequestWithType("GET", ts.URL, "application/dog")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -267,17 +216,7 @@ func TestContentTypeRoutingWildcardType(t *testing.T) {
 	})
 	defer ts.Close()
 
-	req, err := http.NewRequest("GET", ts.URL, strings.NewReader(""))
-	req.Header.Set("Content-Type", "application/dog")
-	if err != nil {
-		t.Fatal(err)
-	}
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	body, err := ioutil.ReadAll(res.Body)
-	res.Body.Close()
+	res, body, err := makeRequestWithType("GET", ts.URL, "application/dog")
 	if err != nil {
 		t.Fatal(err)
 	}
