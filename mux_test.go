@@ -181,3 +181,107 @@ func TestMethodRoutingCanOverrideOptions(t *testing.T) {
 	assert.Equal(t, 200, res.StatusCode)
 	assert.Equal(t, "OPTIONS, received", string(body))
 }
+
+func TestContentTypeRouting(t *testing.T) {
+	ts := httptest.NewServer(ContentType{
+		"application/xml":  writeHandler("cool xml"),
+		"application/json": writeHandler("cool json"),
+	})
+	defer ts.Close()
+
+	req, err := http.NewRequest("GET", ts.URL, strings.NewReader(""))
+	req.Header.Set("Content-Type", "application/json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, err := ioutil.ReadAll(res.Body)
+	res.Body.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, 200, res.StatusCode)
+	assert.Equal(t, "cool json", string(body))
+}
+
+func TestContentTypeRoutingUnknownType(t *testing.T) {
+	ts := httptest.NewServer(ContentType{
+		"application/xml":  writeHandler("cool xml"),
+		"application/json": writeHandler("cool json"),
+	})
+	defer ts.Close()
+
+	req, err := http.NewRequest("GET", ts.URL, strings.NewReader(""))
+	req.Header.Set("Content-Type", "application/dog")
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, err := ioutil.ReadAll(res.Body)
+	res.Body.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, 415, res.StatusCode)
+	assert.Equal(t, "", string(body))
+}
+
+func TestContentTypeRoutingWildcardSubtype(t *testing.T) {
+	ts := httptest.NewServer(ContentType{
+		"application/xml": writeHandler("cool xml"),
+		"application/*":   writeHandler("cool application/*"),
+	})
+	defer ts.Close()
+
+	req, err := http.NewRequest("GET", ts.URL, strings.NewReader(""))
+	req.Header.Set("Content-Type", "application/dog")
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, err := ioutil.ReadAll(res.Body)
+	res.Body.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, 200, res.StatusCode)
+	assert.Equal(t, "cool application/*", string(body))
+}
+
+func TestContentTypeRoutingWildcardType(t *testing.T) {
+	ts := httptest.NewServer(ContentType{
+		"application/xml": writeHandler("cool xml"),
+		"*/*":             writeHandler("cool */*"),
+	})
+	defer ts.Close()
+
+	req, err := http.NewRequest("GET", ts.URL, strings.NewReader(""))
+	req.Header.Set("Content-Type", "application/dog")
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, err := ioutil.ReadAll(res.Body)
+	res.Body.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, 200, res.StatusCode)
+	assert.Equal(t, "cool */*", string(body))
+}
