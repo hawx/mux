@@ -1,8 +1,6 @@
 # mux
 
-A request router and dispatcher.
-
-Phases of done-ness:
+Request routers.
 
 1. Route based on method:
 
@@ -13,11 +11,11 @@ Phases of done-ness:
    })
    ```
 
-   Return a `405 Method Not Allowed` if no match found.
+   If no match return a `405 Method Not Allowed`. A default implementation of
+   the `OPTIONS` method will return an `Allow: ...` header listing the defined
+   methods.
 
-2. Default implementation of `OPTIONS` method.
-
-3. Route based on `ContentType` header:
+2. Route based on `ContentType` header:
 
    ``` golang
    http.Handle("/items", mux.ContentType{
@@ -29,7 +27,7 @@ Phases of done-ness:
 
    If no match return a `415 Unsupported Media Type`.
 
-4. Route based on `Accept` header:
+3. Route based on `Accept` header:
 
    ``` golang
    http.Handle("/items", mux.Accept{
@@ -39,6 +37,4 @@ Phases of done-ness:
    })
    ```
 
-   If no match return a `406 Not Acceptable`
-
-Current Status: 0.
+   If no match return a `406 Not Acceptable`.
