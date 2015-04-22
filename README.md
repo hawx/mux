@@ -1,4 +1,4 @@
-# mux [![docs](http://godoc.org/github.com/hawx/mux?status.svg)](http://godoc.org/github.com/hawx/mux)
+# mux [![docs](http://godoc.org/hawx.me/code/mux?status.svg)](http://godoc.org/hawx.me/code/mux)
 
 Request routers.
 
