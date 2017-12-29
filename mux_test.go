@@ -263,6 +263,23 @@ func TestAcceptRouting(t *testing.T) {
 	assert.Equal(t, "cool json", string(body))
 }
 
+func TestAcceptRoutingWhenUnspecified(t *testing.T) {
+	ts := httptest.NewServer(Accept{
+		"application/xml":  writeHandler("cool xml"),
+		"application/json": writeHandler("cool json"),
+		"*/*":              writeHandler("cool wildcard"),
+	})
+	defer ts.Close()
+
+	res, body, err := makeRequest("GET", ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, 200, res.StatusCode)
+	assert.Equal(t, "cool wildcard", string(body))
+}
+
 func TestAcceptRoutingWithList(t *testing.T) {
 	ts := httptest.NewServer(Accept{
 		"application/xml":  writeHandler("cool xml"),

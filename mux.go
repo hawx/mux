@@ -84,8 +84,8 @@ func (route ContentType) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // Accept maps Accept header values to different handlers. This will attempt to
 // match the acceptable content type with the highest requested quality and
-// greatest specificity. If there is no match found a 406 Not Acceptable
-// response is returned.
+// greatest specificity. A fallback of */* can be specified which will always
+// match if no others do, otherwise a 406 Not Acceptable response is returned.
 type Accept map[string]http.Handler
 
 func (route Accept) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -113,6 +113,11 @@ func (route Accept) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
+	}
+
+	if handler, ok := route["*/*"]; ok {
+		handler.ServeHTTP(w, r)
+		return
 	}
 
 	w.WriteHeader(http.StatusNotAcceptable)
