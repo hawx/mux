@@ -3,6 +3,7 @@ package mux
 
 import (
 	"errors"
+	"mime"
 	"net/http"
 	"sort"
 	"strconv"
@@ -23,7 +24,7 @@ func (route Method) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ks := []string{}
-	for k, _ := range route {
+	for k := range route {
 		ks = append(ks, k)
 	}
 	ks = append(ks, "OPTIONS")
@@ -36,19 +37,24 @@ func (route Method) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// ContentType maps content-types to different handlers. Keys can contain
+// ContentType maps media-types to different handlers. Keys can contain
 // wildcards, so application/* will be routed to for application/xml,
 // application/json, etc. but only if there is no specific match. You can also
-// define */* as a fallback handler, otherwise, when no match is found a 415
+// define */* as a fallback handler, otherwise when no match is found a 415
 // Unsupported Media Type response is returned.
 type ContentType map[string]http.Handler
 
 func (route ContentType) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	contentType := r.Header.Get("Content-Type")
 
+	mediaType, _, err := mime.ParseMediaType(contentType)
+	if err != nil {
+		mediaType = contentType
+	}
+
 	// 1. Check if we have an exact match
 
-	handler, ok := route[contentType]
+	handler, ok := route[mediaType]
 	if ok {
 		handler.ServeHTTP(w, r)
 		return
@@ -63,7 +69,7 @@ func (route ContentType) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// 2. Check if we have a handler with the same subtype
 
-	handler, ok = possibleTypes[strings.SplitN(contentType, "/", 2)[0]]
+	handler, ok = possibleTypes[strings.SplitN(mediaType, "/", 2)[0]]
 	if ok {
 		handler.ServeHTTP(w, r)
 		return

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"hawx.me/code/assert"
 )
 
 // writeHandler returns a Handler that writes the given string when called.
@@ -17,8 +17,6 @@ func writeHandler(str string) http.Handler {
 		fmt.Fprint(w, str)
 	})
 }
-
-// Method
 
 func makeRequest(method, url string) (res *http.Response, body string, err error) {
 	req, err := http.NewRequest(method, url, strings.NewReader(""))
@@ -37,6 +35,8 @@ func makeRequest(method, url string) (res *http.Response, body string, err error
 
 	return
 }
+
+// Method
 
 func TestMethodRoutingForGet(t *testing.T) {
 	ts := httptest.NewServer(Method{
@@ -176,6 +176,22 @@ func TestContentTypeRouting(t *testing.T) {
 
 	assert.Equal(t, 200, res.StatusCode)
 	assert.Equal(t, "cool json", string(body))
+}
+
+func TestContentTypeRoutingParameter(t *testing.T) {
+	ts := httptest.NewServer(ContentType{
+		"application/xml":     writeHandler("cool xml"),
+		"multipart/form-data": writeHandler("cool form"),
+	})
+	defer ts.Close()
+
+	res, body, err := makeRequestWithType("GET", ts.URL, "multipart/form-data; boundary=abcdefgh")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, 200, res.StatusCode)
+	assert.Equal(t, "cool form", string(body))
 }
 
 func TestContentTypeRoutingUnknownType(t *testing.T) {
