@@ -2,7 +2,6 @@
 package mux
 
 import (
-	"errors"
 	"mime"
 	"net/http"
 	"sort"
@@ -160,8 +159,8 @@ func parseContentTypeList(s string) []clause {
 	parts := strings.Split(s, ",")
 	cts := make([]clause, 0, len(parts))
 	for _, part := range parts {
-		ct, err := parseContentType(part)
-		if err != nil {
+		ct, ok := parseContentType(part)
+		if !ok {
 			continue
 		}
 
@@ -171,35 +170,25 @@ func parseContentTypeList(s string) []clause {
 	return cts
 }
 
-func parseContentType(s string) (clause, error) {
-	s = strings.Trim(s, " ")
-	parts := strings.Split(s, ";")
-
-	contentType := parts[0]
-
-	contentTypeParts := strings.Split(contentType, "/")
-	if len(contentTypeParts) != 2 {
-		return clause{}, errors.New("Invalid media type " + s)
+func parseContentType(s string) (clause, bool) {
+	mediaType, params, err := mime.ParseMediaType(s)
+	if err != nil {
+		return clause{}, false
 	}
 
 	q := 1.0
 
-	if len(parts) > 1 {
-		for _, param := range parts[1:] {
-			paramParts := strings.Split(param, "=")
-			if len(paramParts) != 2 {
-				return clause{}, errors.New("Malformed paramter " + param + " in clause " + s)
-			}
-			key := strings.Trim(paramParts[0], " ")
-			if key == "q" {
-				var err error
-				q, err = strconv.ParseFloat(paramParts[1], 32)
-				if err != nil {
-					return clause{}, errors.New("Quality parameter " + paramParts[1] + " can not be parsed from " + s)
-				}
-			}
+	if qs, ok := params["q"]; ok {
+		q, err = strconv.ParseFloat(qs, 32)
+		if err != nil {
+			return clause{}, false
 		}
 	}
 
-	return clause{contentTypeParts[0], contentTypeParts[1], float32(q)}, nil
+	mediaTypeParts := strings.Split(mediaType, "/")
+	if len(mediaTypeParts) != 2 {
+		return clause{}, false
+	}
+
+	return clause{mediaTypeParts[0], mediaTypeParts[1], float32(q)}, true
 }
